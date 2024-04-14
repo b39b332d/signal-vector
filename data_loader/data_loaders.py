@@ -22,14 +22,14 @@ class SignalDataset(Dataset):
 
     def __getitem__(self, idx):
         train_path = self.data_path +"train/"+self.datas[idx]+".npy"
-        label_path = self.data_path +"label/"+self.datas[idx]+".npy"
+        label_path = self.data_path +"gth/"+self.datas[idx]+".npy"
         #ref_path = self.data_path +"label/"+self.datas[idx]+".npy"
         train_data = np.load(train_path) 
         # train_data=np.fft.fft(train_data,axis=1)
         # train_data = np.vstack((train_data.real,train_data.imag))
         label_data = np.load(label_path)
         #train_data = (train_data.T- np.mean(train_data,axis=1))/np.std(train_data,axis=1)
-        label_data = label_data/np.sqrt(np.sum(label_data**2))
+        #label_data = label_data/np.sqrt(np.sum(label_data**2))
         #label_data= np.zeros_like(label_data)
         
         # label_data = torch.from_numpy(label_data@train_data).float().cuda()
@@ -60,8 +60,11 @@ class  SignalDataLoader(BaseDataLoader):
         sample_idx = torch.randint(0,len(self.dataset), size=(1,)).item()
         data, label,ref = self.dataset.get_preview(sample_idx)
         plt.close()
-        # plt.plot(model(torch.from_numpy(data[None,:,:]).float().cuda()).detach().cpu()[0,0])
-        plt.plot(model(torch.from_numpy(data[None,:,:]).float().cuda()).detach().cpu()[0]@data)
+        out = model(torch.from_numpy(data[None,:,:]).float().cuda()).detach().cpu().numpy()[0,0]
+        out -= np.min(out)
+        out /= np.max(out)
+        plt.plot(out)
+        # plt.plot(model(torch.from_numpy(data[None,:,:]).float().cuda()).detach().cpu()[0]@data)
         plt.plot(label.T)
         plt.plot((ref@data)[0])
         plt.pause(0.01)
