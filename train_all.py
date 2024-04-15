@@ -16,20 +16,20 @@ if __name__ == '__main__':
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     writer = SummaryWriter('runs/fashion_trainer_{}'.format(timestamp))
 
-    # model = module_arch.SigNet3()
-    n_block = 8
-    base_filters = 64
+    # model = module_arch.ConvNet1D()
+    # n_block = 8
+    # base_filters = 64
     model = module_arch.Net1D(
-        in_channels=52,
+        in_channels=26,
         base_filters=100,
         ratio=1.0,
-        filter_list = [128, 256, 256, 512],
-        m_blocks_list = [4, 4, 8, 8],
+        filter_list = [64, 128, 128, 256,256,512],
+        m_blocks_list = [4, 4, 6, 6,8,8],
         kernel_size=16,
         stride=2,
         groups_width=16,
         verbose=False,
-        n_classes=52)
+        n_classes=26)
     # def init_normal(m):
     #     if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d, nn.BatchNorm2d)):
     #         nn.init.uniform_(m.weight,0,0.1)

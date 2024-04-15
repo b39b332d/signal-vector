@@ -13,6 +13,21 @@ from sklearn.preprocessing import normalize
 from scipy.optimize import minimize
 from scipy.optimize import Bounds
 import cv2
+def norm_01(sig):
+    sig-=np.min(sig,axis=0)
+    sig/= np.max(sig,axis=0)
+    return sig
+
+def norm_std(sig):
+    sig-=np.mean(sig,axis=0)
+    sig/= np.std(sig,axis=0)
+    return sig
+
+def norm_11(sig):
+    sig = norm_01(sig)
+    sig -=0.5
+    sig *=2.0
+    return sig
 
 def getLabel(ds_path):
     fs=30
@@ -69,7 +84,11 @@ def getLabel(ds_path):
                 filter_sensor.filtfilt(raw_b)])
     D=np.vstack([motion_z])
 
-    load_data = np.load(rois_data)#[:,:,0:3]
+    load_data = np.load(rois_data)#[:,:,[1,3]]
+    t1 = 3*load_data[:,:,0] -2*load_data[:,:,1]
+    t2 = 1.5 * load_data[:,:,0] + load_data[:,:,1]- 1.5*load_data[:,:,2]
+    load_data = np.stack([t1,t2],axis=2)
+
     rois_sigs = np.reshape(load_data.T,(-1,load_data.shape[0]))
     roi_sig_interp = []
     for rois_sig in rois_sigs:
@@ -81,12 +100,12 @@ def getLabel(ds_path):
     rppg_ref_sig = rppg_raw_signal
     rppg_ref_sig =   near_filt(rppg_ref_sig,fs,sig_dft.toFreq(ecg_max_idxs),window_length)   
     
-    make_align = align_sigs(rppg_ref_sig,ecg_filter,fs)
-    ecg_ref = make_align.get_ref()
-    rppg_ref = make_align(rppg_ref_sig)
-    roi_sig_interp = make_align(roi_sig_interp)
-
-    ref_sig = ecg_ref
+    # make_align = align_sigs(rppg_ref_sig,ecg_filter,fs)
+    # ecg_ref = make_align.get_ref()
+    # rppg_ref = make_align(rppg_ref_sig)
+    # roi_sig_interp = make_align(roi_sig_interp)
+    
+    ref_sig = rppg_ref_sig
     time_len=256
     stride = int(fs/2)
     rg = np.arange(0,len(ref_sig)-time_len,stride)
@@ -97,12 +116,10 @@ def getLabel(ds_path):
     aa=0
     for i in rg:
         S_win = roi_sig_interp[:,i:i+time_len].T
-        S_win -= np.min(S_win,axis=0)
-        S_win = S_win/np.max(S_win,axis=0)
+        S_win = norm_std(S_win)
         D_win = ref_sig[i:i+time_len].copy()
-        D_win -= np.min(D_win)
-        D_win = D_win/np.max(D_win)
-        
+        D_win = norm_std(D_win)
+
         ls_out = np.linalg.lstsq(S_win, D_win, rcond=None)[0]
         gi = np.reshape(ls_out,(1,-1))
         ri = S_win.T
