@@ -112,5 +112,8 @@ datasets/
 __MACOSX/
 
 events*.*
-model*
+model_*
+*.onnx
+
 !*.py
+!model/*
