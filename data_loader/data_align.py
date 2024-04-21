@@ -12,14 +12,22 @@ import json
 
 class GetData:
     fname : str
-    rois_data : str
-    rgb_data : str
-    label_gth_prefix : str
-    label_fit_prefix : str
-    train_prefix : str
     dataset_name : str
     def __init__(self,file,fs,window_length):
-        self.file = file
+        self.file = file        
+        self.rois_data = f"./data/{self.dataset_name}/raw/{self.fname}out.npy"
+        self.rgb_data = f"./data/{self.dataset_name}/raw/{self.fname}rgb.npy"
+        self.label_gth_prefix = f"./data/{self.dataset_name}/label_gth/{self.fname}_"
+        self.label_fit_prefix = f"./data/{self.dataset_name}/label_fit/{self.fname}_"
+        self.train_prefix = f"./data/{self.dataset_name}/train/{self.fname}_"
+        if not os.path.isfile(file):
+            raise Exception(file, "not found!")
+        if not os.path.isdir(f"./data/{self.dataset_name}/"):
+            os.mkdir(f"./data/{self.dataset_name}")
+            os.mkdir(f"./data/{self.dataset_name}/raw/")
+            os.mkdir(f"./data/{self.dataset_name}/label_gth/")
+            os.mkdir(f"./data/{self.dataset_name}/label_fit/")
+            os.mkdir(f"./data/{self.dataset_name}/train/")
         if fs is not None and window_length is not None:
             self.fs = fs
             self.sig_dft = sp.DFT(2000,(0.1,4),fs)
@@ -37,8 +45,7 @@ class GetData:
         ref_signals['rois']=roi_sig_interp
         return ref_signals
 
-    def read_rppg(self):
-        raw_rgb = np.load(self.rgb_data)
+    def read_rppg(self,raw_rgb):
         raw_rgb_interp=[]
         for raw_s in raw_rgb.T:
             raw_rgb_interp.append(self.filter_sensor.filtfilt(np.interp(self.ts_dst,self.ts[:len(raw_s)],raw_s)))
@@ -121,6 +128,8 @@ class GetData:
         fig.set_size_inches(13,7.5)
         return fig
     def save_figure(self,fig,block=False):
+        if not os.path.isdir(f"./fig/{self.dataset_name}"):
+            os.mkdir(f"./fig/{self.dataset_name}")
         fig.savefig(f"./fig/{self.dataset_name}/{self.fname}.png")
         if block:
             plt.show()
@@ -131,27 +140,23 @@ class GetData:
 
 class GetDataEcgFitness(GetData):
     def __init__(self,file,fs=None,window_length=None):
-        super().__init__(file,fs,window_length)
         fpaths = file.split(os.sep)
-        self.fname = f"{fpaths[-3]}_{fpaths[-2]}"
         self.dataset_path = f"/tank/数据集/ECG-Fitness/RGB信号版/ECG_FITNESS Signal/{fpaths[-3]}/{fpaths[-2]}/"
-        self.rois_data = f"./data/ecgfitness/raw/{self.fname}out.npy"
-        self.rgb_data = f"./data/ecgfitness/raw/{self.fname}rgb.npy"
-        self.label_gth_prefix = f"./data/ecgfitness/label_gth/{self.fname}_"
-        self.label_fit_prefix = f"./data/ecgfitness/label_fit/{self.fname}_"
-        self.train_prefix = f"./data/ecgfitness/train/{self.fname}_"
+        self.fname = f"{fpaths[-3]}_{fpaths[-2]}"
         self.dataset_name = "ECG-Fitness"
+        super().__init__(file,fs,window_length)
 
     def parse_ref_signal(self):
-        if not (os.path.isfile(self.rois_data) and\
-                os.path.isfile(self.rgb_data) and\
-                os.path.isfile(self.dataset_path+"c920.csv") and\
-            os.path.isfile(self.dataset_path+"viatom-raw.csv") ):
-            exit(0)
+        gth_data1 = self.dataset_path+"c920.csv"
+        gth_data2 = self.dataset_path+"viatom-raw.csv"
+        if not (os.path.isfile(gth_data1) and\
+            os.path.isfile(gth_data2) ):
+            raise Exception(gth_data1,gth_data2,"not found!")
         
-        self.ts = np.loadtxt(self.dataset_path+"c920.csv",delimiter=",")[:,0]
-        ts_ofs = np.loadtxt(self.dataset_path+"c920.csv",delimiter=",")[:,1]
-        ecg_ts,ecg_raw = np.loadtxt(self.dataset_path+"viatom-raw.csv",delimiter=",",skiprows=1)[int(ts_ofs[0]):int(ts_ofs[-1]),:2].T
+        all_ts = np.loadtxt(gth_data1,delimiter=",")
+        self.ts = all_ts[:,0]
+        ts_ofs = all_ts[:,1]
+        ecg_ts,ecg_raw = np.loadtxt(gth_data2,delimiter=",",skiprows=1)[int(ts_ofs[0]):int(ts_ofs[-1]),:2].T
 
         self.ts_dst = np.arange(self.ts[0],self.ts[-1],1000/self.fs) #ms
         _,_,rpeaks,_,_,_,hr = ecg.ecg(signal=ecg_raw, sampling_rate=125,show=False)
@@ -162,27 +167,20 @@ class GetDataEcgFitness(GetData):
         ecg_filter = np.interp(self.ts_dst,np.linspace(ecg_ts[0],ecg_ts[-1],len(ecg_filter)),ecg_filter)
         ecg_spectrogram = self.sig_dft.get_spectrogram(ecg_filter, self.window_length, 1,lambda sig:sig*np.hanning(len(sig)))
         ecg_max_idxs = np.argmax(ecg_spectrogram,1)
-
-        rppg_raw_signal = self.read_rppg()
+        
+        raw_rgb = np.load(self.rgb_data)
+        rppg_raw_signal = self.read_rppg(raw_rgb)
         rppg_ref_sig =   near_filt(rppg_raw_signal,self.fs,self.sig_dft.toFreq(ecg_max_idxs),self.window_length)   
 
         return dict(reference=ecg_filter,reference_rppg=rppg_ref_sig,rppg=rppg_raw_signal,max_idx=ecg_max_idxs)
 
 class GetDataPure(GetData):
     def __init__(self,file,fs=None,window_length=None):
-        super().__init__(file,fs,window_length)
-        self.fname = file.split(os.sep)[-1].split('.')[0]
-
-        self.rois_data = f"./data/pure/raw/{self.fname}out.npy"
-        self.rgb_data = f"./data/pure/raw/{self.fname}bgr.npy"
-        self.label_gth_prefix = f"./data/pure/label_gth/{self.fname}_"
-        self.label_fit_prefix = f"./data/pure/label_fit/{self.fname}_"
-        self.train_prefix = f"./data/pure/train/{self.fname}_"
         self.dataset_name = "PURE"
+        self.fname = file.split(os.sep)[-1].split('.')[0]
+        super().__init__(file,fs,window_length)
 
-    def parse_ref_signal(self):    
-        if not (os.path.isfile(self.rgb_data)):
-            exit(0)
+    def parse_ref_signal(self):
         ecg_max_idxs=[]
         all_Info = json.load(open(self.file))
         self.ts = [ n['Timestamp']/1e6 for n in all_Info['/Image']]
@@ -198,16 +196,128 @@ class GetDataPure(GetData):
         ecg_max_idxs = np.argmax(ecg_spectrogram,1)
         
         
-        rppg_raw_signal = self.read_rppg()
+        raw_rgb = np.load(self.rgb_data)
+        rppg_raw_signal = self.read_rppg(raw_rgb)
         rppg_ref_sig =   near_filt(rppg_raw_signal,self.fs,self.sig_dft.toFreq(ecg_max_idxs),self.window_length)   
 
         max_idx_ref = np.interp(np.linspace(0,1,len(ecg_max_idxs)),np.linspace(0,1,len(bpm_raw)),bpm_raw)
 
         return dict(reference=ppg_filter,reference_rppg=rppg_ref_sig,rppg=rppg_raw_signal,max_idx=max_idx_ref)
     
+class GetDataUbfcPhys(GetData):
+    def __init__(self,file,fs=None,window_length=None):
+        self.dataset_name = "UBFC-Phys"
+        self.fname = file.split(os.sep)[-1].split('.')[0][4:]
+        self.dataset_path = os.path.dirname(file)
+        super().__init__(file,fs,window_length)
+
+    def parse_ref_signal(self):
+        gth_data = f"{self.dataset_path}/bvp_{self.fname}.csv" 
+        if not (os.path.isfile(gth_data)):
+            raise Exception(gth_data,"not found!")
+            
+        raw_rgb = np.load(self.rgb_data)
+        self.ts = np.arange(0,len(raw_rgb)*1000/35.14,1000/35.14)
+        self.ts_dst = np.arange(self.ts[0],self.ts[-1],1000/self.fs) #ms
+        ppg_raw = np.loadtxt(gth_data)
+        from heartpy.datautils import rolling_mean
+        from heartpy.peakdetection import detect_peaks
+        from heartpy.analysis import calc_ts_measures
+        rol_mean = rolling_mean(ppg_raw, windowsize = 0.75, sample_rate = 64)
+        wd = detect_peaks(ppg_raw, rol_mean, ma_perc = 20, sample_rate = 64)
+        m = calc_ts_measures(wd['RR_list'], wd['RR_diff'], wd['RR_sqdiff'])[1]
+        ppg_temp = np.zeros_like(ppg_raw)
+        ppg_temp[wd['peaklist']] = 1
+        ts_signal = np.arange(0,len(ppg_temp)*1000/64,1000/64)
+        ppg_filter = np.interp(self.ts_dst,ts_signal,ppg_temp)
+        ppg_filter = sp.Filter(6,[m['bpm']/60*0.5,m['bpm']/60*1.5],fs=self.fs).filtfilt(ppg_filter)
+        ecg_spectrogram = self.sig_dft.get_spectrogram(ppg_filter, self.window_length, 1,lambda sig:sig*np.hanning(len(sig)))
+        ecg_max_idxs = np.argmax(ecg_spectrogram,1)
+        
+        
+        rppg_raw_signal = self.read_rppg(raw_rgb)
+        rppg_ref_sig =   near_filt(rppg_raw_signal,self.fs,self.sig_dft.toFreq(ecg_max_idxs),self.window_length)   
+
+        return dict(reference=ppg_filter,reference_rppg=rppg_ref_sig,rppg=rppg_raw_signal,max_idx=ecg_max_idxs)
+
+class GetDataUbfc1(GetData):
+    def __init__(self,file,fs=None,window_length=None):
+        self.dataset_name = "UBFC1"
+        self.fname = file.split(os.sep)[-2]
+        self.dataset_path = os.path.dirname(file)
+        super().__init__(file,fs,window_length)
+
+    def parse_ref_signal(self): 
+        gth_data =    self.dataset_path+"/gtdump.xmp"
+        if not (os.path.isfile(gth_data)):
+            raise Exception(gth_data,"not found!")
+            
+        raw_rgb = np.load(self.rgb_data)
+        self.ts = np.arange(0,len(raw_rgb)*1000/28.672,1000/28.672)
+        all_gth = np.loadtxt(gth_data,delimiter=',')
+        ts_signal = all_gth[:,0]
+        self.ts_dst = np.arange(self.ts[0],self.ts[-1],1000/self.fs) #ms
+        ppg_raw = all_gth[:,3]
+        bpm_raw = all_gth[:,1]        
+
+
+        
+        hr_est = np.mean(bpm_raw)/60
+        ppg_filter = np.interp(self.ts_dst,ts_signal,ppg_raw)
+        ppg_filter = sp.Filter(6,[hr_est*0.5,hr_est*1.5],fs=self.fs).filtfilt(ppg_filter)
+        ecg_spectrogram = self.sig_dft.get_spectrogram(ppg_filter, self.window_length, 1,lambda sig:sig*np.hanning(len(sig)))
+        ecg_max_idxs = np.argmax(ecg_spectrogram,1)
+        
+        rppg_raw_signal = self.read_rppg(raw_rgb)
+        rppg_ref_sig =   near_filt(rppg_raw_signal,self.fs,self.sig_dft.toFreq(ecg_max_idxs),self.window_length)   
+        
+        max_idx_ref = np.interp(np.linspace(0,1,len(ecg_max_idxs)),np.linspace(0,1,len(bpm_raw)),bpm_raw)
+
+        return dict(reference=ppg_filter,reference_rppg=rppg_ref_sig,rppg=rppg_raw_signal,max_idx=max_idx_ref)
+
+class GetDataUbfc2(GetData):
+    def __init__(self,file,fs=None,window_length=None):
+        self.dataset_name = "UBFC2"
+        self.fname = file.split(os.sep)[-2]
+        self.dataset_path = os.path.dirname(file)
+        super().__init__(file,fs,window_length)
+
+    def parse_ref_signal(self):   
+        gth_data = self.dataset_path+"/ground_truth.txt"
+        if not (os.path.isfile(gth_data)):
+            raise Exception(gth_data,"not found!")
+            
+        raw_rgb = np.load(self.rgb_data)
+        self.ts = np.arange(0,len(raw_rgb)*1000/29.26,1000/29.26)
+        all_gth = np.loadtxt(gth_data)
+        ts_signal = all_gth[2]
+        self.ts_dst = np.arange(self.ts[0],self.ts[-1],1000/self.fs) #ms
+        ppg_raw = all_gth[0]
+        bpm_raw = all_gth[1]        
+
+        hr_est = np.mean(bpm_raw)/60
+        ppg_filter = np.interp(self.ts_dst,ts_signal,ppg_raw)
+        ppg_filter = sp.Filter(6,[hr_est*0.5,hr_est*1.5],fs=self.fs).filtfilt(ppg_filter)
+        ecg_spectrogram = self.sig_dft.get_spectrogram(ppg_filter, self.window_length, 1,lambda sig:sig*np.hanning(len(sig)))
+        ecg_max_idxs = np.argmax(ecg_spectrogram,1)
+        
+        rppg_raw_signal = self.read_rppg(raw_rgb)
+        rppg_ref_sig =   near_filt(rppg_raw_signal,self.fs,self.sig_dft.toFreq(ecg_max_idxs),self.window_length)   
+        
+        max_idx_ref = np.interp(np.linspace(0,1,len(ecg_max_idxs)),np.linspace(0,1,len(bpm_raw)),bpm_raw)
+
+        return dict(reference=ppg_filter,reference_rppg=rppg_ref_sig,rppg=rppg_raw_signal,max_idx=max_idx_ref)
+
+
 
 def GetDataWrapper(ds_path,fs=None,window_length=None) -> GetData:
     if "ECG-Fitness" in ds_path.split(os.sep):
         return GetDataEcgFitness(ds_path,fs,window_length)
     elif "PURE" in ds_path.split(os.sep):
         return GetDataPure(ds_path,fs,window_length)
+    elif "UBFC-Phys_dataset" in ds_path.split(os.sep):
+        return GetDataUbfcPhys(ds_path,fs,window_length)
+    elif "UBFC1" in ds_path.split(os.sep):
+        return GetDataUbfc1(ds_path,fs,window_length)
+    elif "UBFC2" in ds_path.split(os.sep):
+        return GetDataUbfc2(ds_path,fs,window_length)

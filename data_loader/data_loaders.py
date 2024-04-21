@@ -5,14 +5,15 @@ import pandas as pd
 import numpy as np
 import os,torch
 import matplotlib.pyplot as plt
+from data_loader.data_align import *
 class SignalDataset(Dataset):
     def __init__(self, data_dir):
         self.datas = []
-        self.datasets_ofs = [0]
+        self.datasets = ["ECG-Fitness","PURE","UBFC-Phys"]
         self.data_path = os.path.join(data_dir,"")
-        for datasets in os.listdir(data_dir):
-            train_files = os.listdir(data_dir + datasets + "/train/")
-            self.datas += [ os.path.join(datasets,"{}",f) for f in train_files ]
+        for dataset in self.datasets:
+            train_files = os.listdir(data_dir + dataset + "/train/")
+            self.datas += [ os.path.join(dataset,"{}",f) for f in train_files ]
 
 
     def __len__(self):

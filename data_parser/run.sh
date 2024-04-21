@@ -1,9 +1,15 @@
 #!/bin/bash
 N=6
-files=`find /tank/数据集/ECG-Fitness/视频版/|grep c920-1.avi`
+dataset=UBFC1
+if [ -n "$1" ];then
+    dataset=$1
+fi
+cd /home/a406/Source/signal_vector/
+files=`./data_loader/get_dataset_files.sh $dataset`
 for i in $files; do
     (   
-        python /home/a406/Source/signal_vector/gen_pair/gen_gth_ecgfitness.py $i
+        echo $i
+        python ./data_parser/get_raw.py $i
     ) &
 
     # allow to execute up to $N jobs in parallel

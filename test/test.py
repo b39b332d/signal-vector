@@ -61,5 +61,7 @@ if __name__ == "__main__":
         param = sys.argv[1]
         getSpectrum(param)
     else:
-        # getSpectrum(r"/tank/数据集/ECG-Fitness/视频版/15/01/c920-1.avi")
-        getSpectrum(r"/tank/数据集/PURE/05-02.json")
+        # getSpectrum(r"/tank/数据集/ECG-Fitness/视频版/15/01/c920-1.avi")        
+        getSpectrum(r"/tank/数据集/UBFC-Phys_dataset/s1/vid_s1_T1.avi")
+
+        # getSpectrum(r"/tank/数据集/PURE/05-02.json")

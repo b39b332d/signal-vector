@@ -1,10 +1,14 @@
 #!/bin/bash
 N=6
-files=`find /tank/数据集/ECG-Fitness/视频版/|grep c920-1.avi`
+dataset=UBFC1
+if [ -n "$1" ];then
+    dataset=$1
+fi
+cd /home/a406/Source/signal_vector/
+files=`./data_loader/get_dataset_files.sh $dataset`
 for i in $files; do
     (   
-        echo $i
-        python /home/a406/Source/signal_vector/data_parser/video_parser_ecgfitness.py $i
+        python /home/a406/Source/signal_vector/test/test.py $i
     ) &
 
     # allow to execute up to $N jobs in parallel
@@ -19,5 +23,4 @@ done
 # no more jobs to be started but wait for pending jobs
 # (all need to be finished)
 wait
-
 echo "all done"

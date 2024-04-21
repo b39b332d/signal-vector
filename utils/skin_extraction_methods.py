@@ -168,7 +168,7 @@ class SkinExtractionConvexHull:
         mask = mask * (1 - left_eye_mask) * (1 - right_eye_mask) * (1 - mounth_mask)
         skin_image = image * mask
 
-        rmin, rmax, cmin, cmax = bbox2_CPU(skin_image)
+        # rmin, rmax, cmin, cmax = bbox2_CPU(skin_image)
 
         # cropped_skin_im = skin_image
         # if rmin >= 0 and rmax >= 0 and cmin >= 0 and cmax >= 0 and rmax-rmin >= 0 and cmax-cmin >= 0:

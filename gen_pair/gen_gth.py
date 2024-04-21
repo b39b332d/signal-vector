@@ -22,4 +22,5 @@ if __name__ == "__main__":
         param = sys.argv[1]
         getLabel(param)
     else:
-        getLabel(r"/tank/数据集/PURE/01-01.json")
+        getLabel(r"/tank/数据集/UBFC-Phys_dataset/s1/vid_s1_T1.avi")
+        # getLabel(r"/tank/数据集/PURE/01-01.json")

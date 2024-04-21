@@ -34,8 +34,8 @@ class VideoParser:
         "left_chain": [212, 192,   132,58, 172, 136, 150, 211, 204, 106, 43,57],#10
         "right_chain":[432,416,361,288,397,365,379,431,424,335,273,287],#11
     }
-    dataset: data_align.GetData
-    def __init__(self) -> None:
+    def __init__(self,dataset) -> None:
+        self.dataset = dataset
         self.se = utils.skin_extraction_methods.SkinExtractionConvexHull()
         self.face_mesh = mp.solutions.face_mesh.FaceMesh(
             max_num_faces=1,
@@ -114,33 +114,49 @@ class VideoParser:
     
 
 class VideoParserEcgFitness(VideoParser):
-    def __init__(self,file) -> None:
-        super().__init__()
-        self.dataset = data_align.GetDataEcgFitness(file)
-        self.cap = cv2.VideoCapture(file)
+    def __init__(self,dataset) -> None:
+        super().__init__(dataset)
+        self.cap = cv2.VideoCapture(self.dataset.file)
 
     def read_video(self):
         while True:
             ret, frame = self.cap.read()
             if ret:
                 yield frame
+            else:
+                break
         
 class VideoParserPure(VideoParser):
     import json
-    def __init__(self,file) -> None:
-        super().__init__()
-        self.dataset = data_align.GetDataPure(file)
-        self.all_frames = self.json.load(open(file))['/Image']
+    def __init__(self,dataset) -> None:
+        super().__init__(dataset)
+        self.all_frames = self.json.load(open(self.dataset.file))['/Image']
 
     def read_video(self):
         for frame_ts in self.all_frames:
             frame = cv2.imread(f"{os.path.dirname(self.dataset.file)}/{self.dataset.fname}/Image{frame_ts['Timestamp']}.png")
             if frame is not None:
                 yield frame
+            else:
+                break
 
+class VideoParserUbfc(VideoParser):
+    def __init__(self,dataset) -> None:
+        super().__init__(dataset)
+        self.cap = cv2.VideoCapture(self.dataset.file)
+
+    def read_video(self):
+        while True:
+            ret, frame = self.cap.read()
+            if ret:
+                yield frame
+            else:
+                break
 
 def VideoParserWrapper(ds_path) -> VideoParser:
     if "ECG-Fitness" in ds_path.split(os.sep):
-        return VideoParserEcgFitness(ds_path)
+        return VideoParserEcgFitness(data_align.GetDataWrapper(ds_path))
     elif "PURE" in ds_path.split(os.sep):
-        return VideoParserPure(ds_path)
+        return VideoParserPure(data_align.GetDataWrapper(ds_path))
+    elif "UBFC-Phys_dataset" in ds_path.split(os.sep) or  "UBFC" in ds_path.split(os.sep):
+        return VideoParserUbfc(data_align.GetDataWrapper(ds_path))

@@ -1,10 +1,14 @@
 #!/bin/bash
 N=6
-files=`ls -d /tank/数据集/PURE/*|grep -E "PURE/[0-9]{2}-[0-9]{2}.json$"`
+dataset=UBFC1
+if [ -n "$1" ];then
+    dataset=$1
+fi
+cd /home/a406/Source/signal_vector/
+files=`./data_loader/get_dataset_files.sh $dataset`
 for i in $files; do
     (   
-        echo $i
-        python /home/a406/Source/signal_vector/data_parser/video_parser_pure.py $i
+        python ./gen_pair/gen_gth.py $i
     ) &
 
     # allow to execute up to $N jobs in parallel
