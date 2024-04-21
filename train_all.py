@@ -1,5 +1,4 @@
-import argparse
-import collections
+
 import torch
 import numpy as np
 import data_loader.data_loaders as module_data
@@ -16,35 +15,13 @@ if __name__ == '__main__':
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     writer = SummaryWriter('runs/fashion_trainer_{}'.format(timestamp))
 
-    # model = module_arch.ConvNet1D()
-    # n_block = 8
-    # base_filters = 64
-    model = module_arch.Net1D(
-        in_channels=26,
-        base_filters=100,
-        ratio=1.0,
-        filter_list = [64, 128, 128, 256,256,512],
-        m_blocks_list = [4, 4, 6, 6,8,8],
-        kernel_size=16,
-        stride=2,
-        groups_width=16,
-        verbose=False,
-        n_classes=26)
-    # def init_normal(m):
-    #     if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d, nn.BatchNorm2d)):
-    #         nn.init.uniform_(m.weight,0,0.1)
-
-    # use the modules apply function to recursively apply the initialization
-    # model.apply(init_normal)
-    #checkpoint = torch.load("model_20240411_175005_39")
-    #model.load_state_dict(checkpoint)
-    model.to(device)
-    torch.set_default_device(device)
+    model = module_arch.load_model()
+    
     training_loader = module_data.SignalDataLoader('./data/',128, validation_split=0.05)
     validation_loader = training_loader.split_validation()
     training_loader.preview(model)
 
-    EPOCHS = 50
+    EPOCHS = 200
     epoch_number = 0
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     best_vloss = 1_000_000.
@@ -104,7 +81,7 @@ if __name__ == '__main__':
         # Track best performance, and save the model's state
         if avg_vloss < best_vloss:
             best_vloss = avg_vloss
-            model_path = 'model_{}_{}'.format(timestamp, epoch_number)
+            model_path = './model_save/model_{}_{}_{}'.format(timestamp, epoch_number, avg_vloss)
             torch.save(model.state_dict(), model_path)
 
         epoch_number += 1

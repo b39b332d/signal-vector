@@ -3,6 +3,7 @@ import numpy as np
 import os
 from scipy.spatial import ConvexHull
 from PIL import Image, ImageDraw
+import mediapipe as mp
 
 
 def bbox2_CPU(img):
@@ -90,7 +91,7 @@ class SkinExtractionConvexHull:
         """
         self.device = device
     
-    def extract_skin(self,image, ldmks):
+    def extract_skin(self,image, face_landmarks):
         """
         This method extract the skin from an image using Convex Hull segmentation.
 
@@ -101,6 +102,22 @@ class SkinExtractionConvexHull:
         Returns:
             Cropped skin-image and non-cropped skin-image; both are uint8 ndarray with shape [rows, columns, rgb_channels].
         """
+        ldmks = np.zeros((468, 5), dtype=np.float32)
+        ldmks[:, 0] = -1.0
+        ldmks[:, 1] = -1.0
+        ### face landmarks ###
+        landmarks = [l for l in face_landmarks.landmark]
+        for idx in range(len(landmarks)):
+            landmark = landmarks[idx]
+            if not ((landmark.HasField('visibility') and landmark.visibility < 0.5)
+                    or (landmark.HasField('presence') and landmark.presence < 0.5)):
+                coords = mp.solutions.drawing_utils._normalized_to_pixel_coordinates(
+                    landmark.x, landmark.y, image.shape[1], image.shape[0])
+                if coords:
+                    ldmks[idx, 0] = coords[1]
+                    ldmks[idx, 1] = coords[0]
+        ### skin extraction ###
+
         aviable_ldmks = ldmks[ldmks[:,0] >= 0][:,:2]        
         # face_mask convex hull 
         hull = ConvexHull(aviable_ldmks)
@@ -153,8 +170,8 @@ class SkinExtractionConvexHull:
 
         rmin, rmax, cmin, cmax = bbox2_CPU(skin_image)
 
-        cropped_skin_im = skin_image
-        if rmin >= 0 and rmax >= 0 and cmin >= 0 and cmax >= 0 and rmax-rmin >= 0 and cmax-cmin >= 0:
-            cropped_skin_im = skin_image[int(rmin):int(rmax), int(cmin):int(cmax)]
+        # cropped_skin_im = skin_image
+        # if rmin >= 0 and rmax >= 0 and cmin >= 0 and cmax >= 0 and rmax-rmin >= 0 and cmax-cmin >= 0:
+        #     cropped_skin_im = skin_image[int(rmin):int(rmax), int(cmin):int(cmax)]
 
-        return cropped_skin_im, skin_image,mask
+        return skin_image,mask

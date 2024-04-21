@@ -1,9 +1,10 @@
 #!/bin/bash
 N=6
-files=`find /tank/数据集/ECG-Fitness/视频版/|grep c920-1.avi`
+files=`ls -d /tank/数据集/PURE/*|grep -E "PURE/[0-9]{2}-[0-9]{2}.json$"`
 for i in $files; do
     (   
-        python /home/a406/Source/signal_vector/gen_pair/gen_gth.py $i
+        echo $i
+        python /home/a406/Source/signal_vector/data_parser/video_parser_pure.py $i
     ) &
 
     # allow to execute up to $N jobs in parallel

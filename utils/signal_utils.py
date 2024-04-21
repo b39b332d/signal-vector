@@ -1,9 +1,23 @@
 import numpy as np
 import utils.sp as sp
 
+def norm_01(sig):
+    max_axis = np.argmax(sig.shape)
+    out = sig - np.min(sig,axis=max_axis,keepdims = True)
+    out/= np.max(out,axis=max_axis,keepdims = True)
+    return out
 
-def norm(sig):
-    return (sig - np.mean(sig)) / np.std(sig)
+def norm_std(sig):
+    max_axis = np.argmax(sig.shape)
+    out= sig - np.mean(sig,axis=max_axis,keepdims = True)
+    out/= np.std(out,axis=max_axis,keepdims = True)
+    return out
+
+def norm_11(sig):
+    out = norm_01(sig)
+    out -=0.5
+    out *=2.0
+    return out
 
 
 def getPos(sig, interp_fs):
@@ -75,18 +89,24 @@ def lsfilt(sig, noise, wlen):
 
 
 class align_sigs:
-    def __init__(self, sig, ref_sig, fs, delta=1, delta_back=None):
+    def __init__(self, sig, ref_sig, fs, delta=5, delta_back=None):
         if delta_back == None:
             delta_back = delta
         pad_front = int(delta * fs)
         pad_back = int(delta * fs)
         move_sig = ref_sig[pad_front:-pad_back]
-        out = np.convolve(move_sig, sig, mode='valid')
-        self.ofs = pad_front - np.argmax(out)
-        self.ref_sig = ref_sig
+        out = np.convolve(sig,move_sig[::-1], mode='valid')
+        max_idx = np.argmax(np.abs(out))
+        if out[max_idx] <0:
+            self.ref_sig = -ref_sig
+        else:
+            self.ref_sig = ref_sig
+
+        self.ofs = pad_front - np.argmax(np.abs(out))
+
 
     def get_ref(self):
-        if self.ofs > 0:
+        if self.ofs >= 0:
             return self.ref_sig[self.ofs:]
         else:
             return self.ref_sig[:self.ofs]
@@ -103,13 +123,28 @@ class align_sigs:
             else:
                 return sig[:, -self.ofs:]
 
-def near_filt(sig, fs, freqs, wlen):
+def near_filt(sig, fs, freqs, wlen,delta=0.1):
     out = np.zeros_like(sig)
     for i in range(0, len(sig) - wlen):
         sig_win = sig[i:i + wlen]
         hr_est = freqs[i]
-        o = sp.Filter(6, [hr_est - 0.1, hr_est + 0.1], fs=fs).filtfilt(sig_win)
+        o = sp.Filter(6, [hr_est - delta, hr_est + delta], fs=fs).filtfilt(sig_win)
         out[i:i + wlen] += o
     out /= np.hstack([np.arange(1, wlen + 1), np.ones(len(out) - 2 * wlen)*wlen,
                           np.arange(1, wlen + 1)[::-1]])
     return out
+
+def get_error(sig1,sig2,fs,w_len,stride):
+    dis_arr=[]
+    for i in range(0,len(sig1)-w_len,stride):
+        sig_win1 = np.append(sig1[i:i+w_len],np.zeros(3000-w_len))
+        sig_win2 = np.append(sig2[i:i+w_len],np.zeros(3000-w_len))
+        fft1 = np.abs(np.fft.rfft(sig_win1))
+        fft2 = np.abs(np.fft.rfft(sig_win2))
+        dis = np.argmax(fft1)-np.argmax(fft2)
+        dis_arr.append(dis)
+    dis_arr = np.array(dis_arr)*fs/3000 *60
+    mae = np.mean(np.abs(dis_arr))
+    mse = np.mean(dis_arr**2)
+    rmse = np.sqrt(mse)
+    return mae,mse,rmse

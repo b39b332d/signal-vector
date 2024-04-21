@@ -190,7 +190,7 @@ class MyConv1dPadSame(nn.Module):
         p = max(0, (out_dim - 1) * self.stride + self.kernel_size - in_dim)
         pad_left = p // 2
         pad_right = p - pad_left
-        net = F.pad(net, (pad_left, pad_right), "constant", 0)
+        net = F.pad(net, (pad_left, pad_right), "constant", 0.0)
         
         net = self.conv(net)
 
@@ -219,7 +219,7 @@ class MyMaxPool1dPadSame(nn.Module):
         p = max(0, self.kernel_size - 1)
         pad_left = p // 2
         pad_right = p - pad_left
-        net = F.pad(net, (pad_left, pad_right), "constant", 0)
+        net = F.pad(net, (pad_left, pad_right), "constant", 0.0)
         
         net = self.max_pool(net)
         
@@ -353,7 +353,7 @@ class BasicBlock(nn.Module):
             identity = identity.transpose(-1,-2)
             ch1 = (self.out_channels-self.in_channels)//2
             ch2 = self.out_channels-self.in_channels-ch1
-            identity = F.pad(identity, (ch1, ch2), "constant", 0)
+            identity = F.pad(identity, (ch1, ch2), "constant", 0.0)
             identity = identity.transpose(-1,-2)
         
         # shortcut
@@ -507,7 +507,7 @@ class Net1D(nn.Module):
     def forward(self, x):
         
         out = x
-        
+        # out = torch.view_as_real(torch.fft.rfft(x)[:,:,1:]).flatten(2,3)
         # first conv
         out = self.first_conv(out)
         if self.use_bn:
@@ -536,7 +536,7 @@ class ConvNet1D(nn.Module):
     def __init__(self):
         super().__init__()
         self.layer1 = nn.Sequential(
-            nn.Conv1d(26, 64, kernel_size=3),
+            nn.Conv1d(36, 64, kernel_size=3),
             nn.ReLU(),
             nn.Dropout(0.5),
             nn.MaxPool1d(10))
@@ -545,7 +545,7 @@ class ConvNet1D(nn.Module):
             nn.Linear(1600,200),
             nn.ReLU())
         self.layer4 = nn.Sequential(
-            nn.Linear(200,26),
+            nn.Linear(200,36),
             #nn.Softmax())
             )
 
@@ -561,6 +561,49 @@ class ConvNet1D(nn.Module):
         t=torch.flatten(target)
         loss = 1-torch.corrcoef(torch.vstack((o,t)))[0,1]
         return loss
+
+def default_net():
+    return ConvNet1D()
+    # return Net1D(
+    #     in_channels=24,
+    #     base_filters=100,
+    #     ratio=1.0,
+    #     filter_list = [64, 128, 128, 256,256,512],
+    #     m_blocks_list = [4, 4, 6, 6,8,8],
+    #     kernel_size=16,
+    #     stride=2,
+    #     groups_width=16,
+    #     verbose=False,
+    #     n_classes=24)
+
+
+
+def load_model(model_savepath=None):
+    device = torch.device('cuda:0')
+    model = None
+    if model_savepath is not None and model_savepath[-3:] == ".pt":
+        model = torch.jit.load(model_savepath)
+    else:
+        model = default_net()
+        if model_savepath is not None:
+            checkpoint = torch.load(model_savepath)
+            model.load_state_dict(checkpoint)
+
+    model.to(device)
+    torch.set_default_device(device)
+    return model
+
+def save_model(model=None,model_checkpoint=None,out_path="model_scripted.pt"):
+    X=torch.tensor(np.zeros([1,36,256]), dtype=torch.float)
+    if model is None:
+        model = default_net()
+    if model_checkpoint is not None:
+        checkpoint = torch.load("model_save/model_20240419_120154_179_0.37475821375846863")
+        model.load_state_dict(checkpoint)
+    _=model(X)
+    model_scripted = torch.jit.script(model) # Export to TorchScript
+    model_scripted.save(out_path) # Save
+
 if __name__ == "__main__":
     #net = SigNet3()
     n_block = 8

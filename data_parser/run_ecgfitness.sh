@@ -4,7 +4,7 @@ files=`find /tank/数据集/ECG-Fitness/视频版/|grep c920-1.avi`
 for i in $files; do
     (   
         echo $i
-        python /home/a406/Source/signal_vector/data_parser/video_parser.py $i
+        python /home/a406/Source/signal_vector/data_parser/video_parser_ecgfitness.py $i
     ) &
 
     # allow to execute up to $N jobs in parallel
