@@ -118,3 +118,4 @@ model_*
 !*.py
 !model/*
 fig/
+data/

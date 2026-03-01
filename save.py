@@ -1,7 +1,7 @@
 import numpy as np
 import torch
-import model.model as module_arch
-X=torch.tensor(np.zeros([1,36,256]), dtype=torch.float)
+import model.model2 as module_arch
+X=torch.tensor(np.zeros([1,39,256]), dtype=torch.float)
 model = module_arch.ConvNet1D()
 
 # model = module_arch.Net1D(
@@ -15,8 +15,8 @@ model = module_arch.ConvNet1D()
 #     groups_width=16,
 #     verbose=False,
 #     n_classes=24)
-checkpoint = torch.load("model_save/model_20240419_120154_179_0.37475821375846863")
+checkpoint = torch.load("/home/hexingyan/signal_vector/model_save/1t_28_202626_3_0.5644904375076294")
 model.load_state_dict(checkpoint)
 y=model(X)
 model_scripted = torch.jit.script(model) # Export to TorchScript
-model_scripted.save('model_scripted2.pt') # Save
+model_scripted.save('model_scripted_all.pt') # Save

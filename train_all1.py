@@ -1,13 +1,13 @@
 import os
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 import torch
-device = torch.device('cuda:1')
+device = torch.device('cuda:0')
 torch.set_default_device(device)
 import numpy as np
 import data_loader.data_loaders as module_data
 import model.loss as module_loss
 import model.metric as module_metric
-import model.model as module_arch
+import model.model1 as module_arch
 from datetime import datetime
 import torch.nn as nn      
 
@@ -16,16 +16,15 @@ if __name__ == '__main__':
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     torch.manual_seed(1)
     torch.use_deterministic_algorithms(True)
-    # torch.autograd.set_detect_anomaly(True)
-    model = module_arch.load_model()#"/home/hexingyan/signal_vector/model_save/1t_27_160746_87_0.4370833933353424")
+    model = module_arch.load_model()#"/src/signal_vector/model_save/1t_07_114918_19_0.5513692498207092")
 
     tran_ds ,val_ds = module_data.SignalDataset('./data/').split_dataset(0.1)
-    training_loader = module_data.SignalDataLoader(tran_ds,512)
-    validation_loader = module_data.SignalDataLoader(val_ds,512)
+    training_loader = module_data.SignalDataLoader(tran_ds,1024)
+    validation_loader = module_data.SignalDataLoader(val_ds,1024)
 
     EPOCHS = 200
     epoch_number = 0
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.00001)
     best_vloss = 1_000_000.
     
     def train_one_epoch(epoch_index):
